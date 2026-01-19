@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>SleepFix v18</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://img.icons8.com/color/180/moon.png">
+
+    <style>
+        :root { --bg: #121212; --text: #e0e0e0; --accent: #7b68ee; --success: #00c853; --danger: #ff5252; --calm: #4fc3f7; }
+        
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        html { height: 100%; overscroll-behavior: none; }
+        
+        body { 
+            background-color: var(--bg); 
+            color: var(--text); 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            margin: 0; 
+            padding: 15px; 
+            height: 100%; 
+            width: 100%;
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center;
+            position: relative;
+        }
+
+        .container { width: 100%; max-width: 400px; display: flex; flex-direction: column; max-height: 100%; position: relative; }
+
+        h1 { font-size: 2rem; margin-bottom: 5px; margin-top: 0; text-align: center; }
+        h2 { font-size: 1.2rem; color: #888; font-weight: normal; margin-bottom: 20px; text-align: center; }
+        h3 { color: var(--calm); margin-bottom: 10px; margin-top: 25px; }
+        
+        .version-tag { color: #555; font-size: 0.8rem; margin-top: -5px; margin-bottom: 15px; text-align: center; font-family: monospace; }
+
+        .card { background: #1e1e1e; padding: 20px; border-radius: 15px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: 1px solid #333; text-align: center; flex-shrink: 0; width: 100%; }
+        
+        input { 
+            -webkit-appearance: none; 
+            appearance: none;
+            font-size: 2rem; 
+            padding: 12px; 
+            border-radius: 12px; 
+            border: 1px solid #444; 
+            width: 100%; 
+            max-width: 100%; 
+            margin: 10px 0; 
+            background: #252525; 
+            color: white; 
+            text-align: center; 
+        }
+        
+        label { display: block; margin-top: 15px; font-weight: bold; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; font-size: 0.8rem; }
+        
+        button { background-color: var(--accent); color: white; border: none; padding: 16px; font-size: 1.1rem; border-radius: 16px; cursor: pointer; width: 100%; margin-top: 8px; font-weight: bold; box-shadow: 0 4px 15px rgba(123, 104, 238, 0.4); transition: transform 0.1s; flex-shrink: 0; }
+        button:active { transform: scale(0.96); }
+        
+        .btn-fail { background-color: transparent; border: 2px solid var(--danger); color: var(--danger); margin-top: 8px; box-shadow: none; padding: 14px; }
+        
+        .btn-advice-link { 
+            background-color: transparent; 
+            border: 1px solid var(--calm); 
+            color: var(--calm); 
+            margin-top: 15px; 
+            margin-bottom: 5px; 
+            box-shadow: none; 
+            font-size: 1.1rem;
+            padding: 16px;
+            border-radius: 16px;
+        }
+        
+        .btn-cancel { background-color: transparent; color: #888; border: 1px solid #444; box-shadow: none; font-size: 1rem; padding: 12px; }
+
+        .format-toggle {
+            align-self: center;
+            background: rgba(255,255,255,0.08);
+            color: #666;
+            font-size: 0.75rem;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            width: auto;
+            margin-bottom: 10px;
+            border: 1px solid #333;
+        }
+
+        .hidden { display: none !important; }
+        .time-display { font-size: 1.9rem; font-weight: 800; color: white; margin: 5px 0; letter-spacing: -1px; white-space: nowrap; }
+        .sub-text { font-size: 0.9rem; color: #888; margin-top: 5px; }
+        
+        .success-card { border: 1px solid var(--success); }
+        .success-text { color: var(--success); }
+
+        .info-box {
+            background: #252525;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: left;
+            font-size: 0.9rem;
+            color: #ccc;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #444;
+        }
+
+        /* FIXED: Changed to 'fixed' to guarantee it covers the whole screen and content is visible */
+        #adviceModal {
+            position: fixed; /* Was absolute */
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; height: 100%;
+            background: #121212;
+            z-index: 999; /* Higher z-index */
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .modal-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-bottom: 20px;
+            text-align: left;
+            line-height: 1.6;
+            color: #ccc;
+        }
+
+        .modal-content p { margin-bottom: 15px; font-size: 1rem; }
+        .highlight { color: white; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <div class="format-toggle" onclick="toggleFormat()" id="formatBtn">24h</div>
+
+        <div id="setupView">
+            <h1>Sleep Reset</h1>
+            <div class="version-tag">v18</div>
+            <h2>Configure your plan</h2>
+            
+            <div class="card">
+                <label>When did you wake up today?</label>
+                <input type="time" id="wakeInput" value="15:00">
+                
+                <label>Ideal Wake Time:</label>
+                <input type="time" id="goalInput" value="07:00">
+            </div>
+            
+            <button onclick="startProgram()">Start Repair Program</button>
+        </div>
+
+        <div id="dashboardView" class="hidden">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px; opacity:0.6; font-size:0.8rem;">
+                <span>Current: <b id="displayCurrent">--:--</b></span>
+                <span>Goal: <b id="displayGoal">--:--</b></span>
+            </div>
+
+            <div class="card">
+                <label>DO NOT SLEEP BEFORE</label>
+                <div id="bedtimeWindow" class="time-display">--:--</div>
+                <p class="sub-text">Awake Goal: 17-19 Hours</p>
+            </div>
+
+            <div class="card">
+                <label>SET ALARM FOR</label>
+                <div id="alarmTime" class="time-display" style="color: var(--accent);">--:--</div>
+                <p class="sub-text" id="alarmMsg">We are shifting you back 1 hour.</p>
+            </div>
+
+            <button onclick="confirmAdherence()" style="background-color: var(--success);">I Woke Up On Time</button>
+            
+            <button class="btn-fail" onclick="showFailureScreen()">I Overslept / Failed...</button>
+            
+            <p onclick="resetApp()" style="margin-top:15px; color:#444; font-size:0.8rem; text-decoration:underline; text-align:center; cursor:pointer;">Reset Everything</p>
+        </div>
+
+        <div id="failureView" class="hidden">
+            <h1 style="color: var(--accent)">Recalibrate</h1>
+            <p style="text-align:center;">Don't worry. We just adjust the plan.</p>
+            
+            <div class="card" style="border-color: var(--accent);">
+                <label style="color: var(--accent);">When did you actually wake up?</label>
+                <input type="time" id="failInput">
+            </div>
+            
+            <button class="btn-advice-link" onclick="openAdvice()">View Sleep Advice</button>
+            
+            <button onclick="confirmFailure()" style="background-color: var(--accent);">Update Plan</button>
+            
+            <button class="btn-cancel" onclick="cancelFailure()">Cancel</button>
+        </div>
+
+        <div id="successView" class="hidden">
+            <h1 class="success-text">Schedule Fixed!</h1>
+            <p style="text-align:center;">You have reached your goal.</p>
+            
+            <div class="card success-card">
+                <label>Go to bed between</label>
+                <div id="maintenanceBedtime" class="time-display">--:--</div>
+                <p class="sub-text" style="color: var(--success)">For 7-8 Hours Sleep</p>
+                
+                <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
+                
+                <label>Wake Up At</label>
+                <div id="maintenanceWake" class="time-display" style="color: white;">--:--</div>
+            </div>
+
+            <div class="info-box">
+                <p><strong style="color:white;">Why the change?</strong></p>
+                <p>During the "fixing" phase, we aimed for 5-7 hours to build sleep pressure. Now that you are stable, <strong>7-8 hours</strong> is the optimal amount for health.</p>
+                <p>In this "Maintenance Phase", stick to your wake up time of <b id="finalGoalDisplay" style="color:white">--:--</b> and aim for the bedtime window above.</p>
+            </div>
+            
+            <p onclick="resetApp()" style="margin-top:15px; color:#444; font-size:0.8rem; text-decoration:underline; text-align:center; cursor:pointer;">Full Reset</p>
+        </div>
+
+    </div>
+
+    <div id="adviceModal" class="hidden">
+        <h2 style="color:white; margin-top:0;">Sleep Wisdom</h2>
+        
+        <div class="modal-content">
+            <h3>Sleep is Inaction</h3>
+            <p>Sleep is not an action, it's an inaction, so the worst thing you can do is try hard to force yourself to fall asleep. You need to be awake long enough to get exhausted and tired enough to almost be unable to NOT fall asleep naturally.</p>
+            <p>Think of it like when you were a kid; You never WANTED to sleep, the tiredness just took over at a certain point and you <span class="highlight">FELL</span> asleep. Emphasis on "FELL" as that describes how it is not a thing you do, but a thing that happens to you.</p>
+
+            <h3>Overthinking is Your Enemy</h3>
+            <p>Now to be able to fall asleep you need to be tired enough, hence the conservative logic of this app (rather aim to sleep 5 hours than 9). BUT you also need to shut your brain down.</p>
+            <p>This happens naturally as you get tired, and when you were a kid this was natural as well, since your cognitive abilities were not as developed as they are today. BUT for a lot of people they have unlearned the ability to shut their overthinking down.</p>
+            <p>Now that is a large psychological challenge that I'm not going to magically fix with this writing, BUT I do wanna propose a compromise: To at least learn to shut the brain's overthinking down in the evening before bed. This is because this is the most important time to get rest in the head in order to get your precious sleep.</p>
+            <p>We all know that not sleeping is the quickest way to get super mentally unwell, and that is why it is absolutely necessary to learn to shut the brain down in the evening. Then you're free to worry and overthink and ruminate like a mad person during the daytime for all I care. I'm just your sleep guru.</p>
+            <p>Now if it is hard to stop the overthinking or worrying, simply just tell yourself:</p>
+            <blockquote style="border-left: 2px solid var(--accent); padding-left: 10px; color: var(--accent);">"I can think about that tomorrow, NOW I need to sleep and that is not up for discussion."</blockquote>
+
+            <h3>Screen Ruins Sleep? Or does it?</h3>
+            <p>One of the most popular advices to improve sleep quality is to not use a screen in the hours before going to sleep. <span class="highlight">BUT I'm gonna take a stance and disagree strongly</span> with that advice. At least for people who have sleep issues due to overthinking.</p>
+            <p>Cause what happens when you shut off the screen and just sit or lay in your bed for two hours doing fuck all, cause the only thing that gives you enough dopamine to be doing is using your screen? You start to crawl into your own head and begin overthinking, and that is bad for sleep.</p>
+            <p>That is why MY advice for you (if you are an overthinker) is to put on something very low intensity and super chill, like Friends, The Office, How I Met Your Mother, etc. Sitcoms are the golden nugget in my book. You can also cozy up with some restoration videos or woodworking videos on YouTube, whatever floats your boat as long as it is low tempo and calming.</p>
+            <p>This helps your brain to just watch the show and get super relaxed, and eventually you will be tired enough to wanna turn off the show and close your eyes, and soon you will be taken away by sweet sleep.</p>
+            <p>Now a quick note on the screen: I recommend turning on Do Not Disturb an hour before sleep and generally not using the screen for tasks or checking mail or to-do lists or any potentially stressful things.</p>
+        </div>
+        
+        <button onclick="closeAdvice()" style="margin-top:10px; background-color: var(--success);">I will try again</button>
+        <button class="btn-cancel" onclick="closeAdvice()" style="margin-top:10px;">Close Advice</button>
+    </div>
+
+    <script>
+        // --- HELPER FUNCTIONS ---
+        function roundToNearest30(timeStr) {
+            let [h, m] = timeStr.split(':').map(Number);
+            let totalMins = h * 60 + m;
+            let remainder = totalMins % 30;
+            if (remainder >= 15) { totalMins += (30 - remainder); } else { totalMins -= remainder; }
+            let newH = Math.floor(totalMins / 60) % 24;
+            let newM = totalMins % 60;
+            return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+        }
+        function getMins(timeStr) {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        }
+
+        // --- TIME FORMATTER ---
+        function formatTime(date) {
+            const is24 = localStorage.getItem('use24Hour') !== 'false';
+            return date.toLocaleTimeString([], {
+                hour: is24 ? '2-digit' : 'numeric',
+                minute: '2-digit',
+                hour12: !is24
+            });
+        }
+
+        function toggleFormat() {
+            const current = localStorage.getItem('use24Hour') !== 'false';
+            localStorage.setItem('use24Hour', !current);
+            updateToggleBtn();
+            if (localStorage.getItem('isActive') === 'true') {
+                renderDashboard();
+            }
+        }
+
+        function updateToggleBtn() {
+            const is24 = localStorage.getItem('use24Hour') !== 'false';
+            document.getElementById('formatBtn').innerText = is24 ? '24h' : '12h';
+        }
+
+        // --- SHARED LOGIC ---
+        function getNextWakeTime(currentStr, goalStr) {
+            const currentMins = getMins(currentStr);
+            const goalMins = getMins(goalStr);
+            const diff = currentMins - goalMins;
+            let nextTimeStr, message, isFinalStep = false;
+
+            if (diff > 0 && diff <= 60) {
+                nextTimeStr = goalStr;
+                message = "Final Adjustment: Reaching goal tomorrow!";
+                isFinalStep = true;
+            } else {
+                const wakeDate = new Date(`1970-01-01T${currentStr}:00`);
+                const nextDate = new Date(wakeDate.getTime() - 1 * 60 * 60 * 1000);
+                nextTimeStr = nextDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false});
+                message = "We are shifting you back 1 hour.";
+            }
+            return { nextTimeStr, message, isFinalStep };
+        }
+
+        // --- CORE UI ---
+        function startProgram() {
+            let wakeStr = document.getElementById('wakeInput').value;
+            let goalStr = document.getElementById('goalInput').value;
+            if(!wakeStr || !goalStr) { alert("Please fill in both times."); return; }
+            wakeStr = roundToNearest30(wakeStr);
+            goalStr = roundToNearest30(goalStr);
+            localStorage.setItem('currentWake', wakeStr);
+            localStorage.setItem('goalWake', goalStr);
+            localStorage.setItem('isActive', 'true');
+            renderDashboard();
+        }
+
+        function renderDashboard() {
+            const currentWake = localStorage.getItem('currentWake');
+            const goalWake = localStorage.getItem('goalWake');
+            if (!currentWake) return;
+
+            document.getElementById('setupView').classList.add('hidden');
+            document.getElementById('failureView').classList.add('hidden'); 
+            document.getElementById('adviceModal').classList.add('hidden');
+            document.getElementById('dashboardView').classList.remove('hidden');
+            
+            const currentWakeDate = new Date(`1970-01-01T${currentWake}:00`);
+            const goalWakeDate = new Date(`1970-01-01T${goalWake}:00`);
+            
+            document.getElementById('displayCurrent').innerText = formatTime(currentWakeDate);
+            document.getElementById('displayGoal').innerText = formatTime(goalWakeDate);
+
+            // AWAKE LOGIC: 17 to 19 hours
+            const wakeDate = new Date(`1970-01-01T${currentWake}:00`);
+            const bedStart = new Date(wakeDate.getTime() + 17 * 60 * 60 * 1000); 
+            const bedEnd = new Date(wakeDate.getTime() + 19 * 60 * 60 * 1000);   
+            
+            document.getElementById('bedtimeWindow').innerText = `${formatTime(bedStart)} - ${formatTime(bedEnd)}`;
+
+            const nextStep = getNextWakeTime(currentWake, goalWake);
+            const nextAlarmDate = new Date(`1970-01-01T${nextStep.nextTimeStr}:00`);
+            document.getElementById('alarmTime').innerText = formatTime(nextAlarmDate);
+            document.getElementById('alarmMsg').innerText = nextStep.message;
+
+            if (currentWake === goalWake) showSuccess(goalWake);
+        }
+
+        function confirmAdherence() {
+            const currentWake = localStorage.getItem('currentWake');
+            const goalWake = localStorage.getItem('goalWake');
+            const nextStep = getNextWakeTime(currentWake, goalWake);
+            localStorage.setItem('currentWake', nextStep.nextTimeStr);
+            if (nextStep.nextTimeStr === goalWake) showSuccess(goalWake);
+            else location.reload();
+        }
+
+        function showFailureScreen() {
+            document.getElementById('dashboardView').classList.add('hidden');
+            document.getElementById('adviceModal').classList.add('hidden');
+            document.getElementById('failureView').classList.remove('hidden');
+            document.getElementById('failInput').value = localStorage.getItem('currentWake');
+        }
+
+        function confirmFailure() {
+            let actualWake = document.getElementById('failInput').value;
+            if(!actualWake) return;
+            actualWake = roundToNearest30(actualWake);
+            localStorage.setItem('currentWake', actualWake);
+            location.reload();
+        }
+
+        function cancelFailure() {
+            document.getElementById('failureView').classList.add('hidden');
+            document.getElementById('dashboardView').classList.remove('hidden');
+        }
+
+        function openAdvice() {
+            document.getElementById('failureView').classList.add('hidden');
+            document.getElementById('adviceModal').classList.remove('hidden');
+        }
+        
+        function closeAdvice() {
+            document.getElementById('adviceModal').classList.add('hidden');
+            document.getElementById('failureView').classList.remove('hidden');
+        }
+
+        function showSuccess(goalTime) {
+            document.getElementById('setupView').classList.add('hidden');
+            document.getElementById('dashboardView').classList.add('hidden');
+            document.getElementById('failureView').classList.add('hidden');
+            document.getElementById('adviceModal').classList.add('hidden');
+            document.getElementById('successView').classList.remove('hidden');
+            
+            const goalDate = new Date(`1970-01-01T${goalTime}:00`);
+            document.getElementById('finalGoalDisplay').innerText = formatTime(goalDate);
+            document.getElementById('maintenanceWake').innerText = formatTime(goalDate);
+
+            const bedEarly = new Date(goalDate.getTime() - 8 * 60 * 60 * 1000);
+            const bedLate = new Date(goalDate.getTime() - 7 * 60 * 60 * 1000);
+
+            document.getElementById('maintenanceBedtime').innerText = 
+                `${formatTime(bedEarly)} - ${formatTime(bedLate)}`;
+        }
+
+        function resetApp() {
+            if(confirm("This will fully reset the app. Are you sure?")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        updateToggleBtn();
+        if (localStorage.getItem('isActive') === 'true') {
+            renderDashboard();
+        }
+    </script>
+</body>
+</html>
